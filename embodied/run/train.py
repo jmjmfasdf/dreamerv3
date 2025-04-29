@@ -6,7 +6,7 @@ import embodied
 import numpy as np
 
 
-def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
+def train(make_agent, make_replay, make_env, make_stream, make_logger, args, config):
 
   agent = make_agent()
   replay = make_replay()
@@ -23,9 +23,9 @@ def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
 
   batch_steps = args.batch_size * args.batch_length
   should_train = elements.when.Ratio(args.train_ratio / batch_steps)
-  should_log = embodied.LocalClock(args.log_every)
-  should_report = embodied.LocalClock(args.report_every)
-  should_save = embodied.LocalClock(args.save_every)
+  should_log = embodied.StepClock(args.log_every)
+  should_report = embodied.StepClock(args.report_every)
+  should_save = embodied.StepClock(args.save_every)
 
   @elements.timer.section('logfn')
   def logfn(tran, worker):
@@ -92,9 +92,47 @@ def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
   print('Start training loop')
   policy = lambda *args: agent.policy(*args, mode='train')
   driver.reset(agent.init_policy)
+  
+  ##############################
+  from collections import deque
+  recent_scores = deque(maxlen=10)  # 최근 10개 에피소드 점수 추적
+  best_avg_score = float('-inf')
+
+  # task별로 threshold 설정
+  task_thresholds = {
+      'atari_pong': 1,
+      'atari_enduro': 309.6,
+      'atari_space_invaders': 1652.0,
+  }
+  ##############################
   while step < args.steps:
 
     driver(policy, steps=10)
+    #############################################################################################
+    # 최근 에피소드 점수 추적
+    current_scores = epstats.result()
+    if current_scores and 'score' in current_scores:
+      recent_scores.append(current_scores['score'])
+    if recent_scores:
+        current_avg_score = sum(recent_scores) / len(recent_scores)
+        
+        # 최고 평균 점수 업데이트 및 체크포인트 저장
+        if current_avg_score > best_avg_score:
+            best_avg_score = current_avg_score
+            
+            # 최고 평균 점수 체크포인트 저장
+            checkpoint_path = f"{logdir}/ckpt/agent_best_avg_score_{best_avg_score:.2f}.pt"
+            cp.save(checkpoint_path)
+
+        # task별 max_score 확인
+        max_score = task_thresholds.get(config.task, float('inf'))
+        
+        # 평균 점수 기반 학습 종료 조건
+        if current_avg_score >= max_score:
+            print(f"Reached target average score {current_avg_score} for task {config.task}. "
+                  f"Stopping training after {len(recent_scores)} episodes.")
+            break
+    #############################################################################################
 
     if should_report(step) and len(replay):
       agg = elements.Agg()
@@ -114,6 +152,9 @@ def train(make_agent, make_replay, make_env, make_stream, make_logger, args):
       logger.write()
 
     if should_save(step):
-      cp.save()
+        checkpoint_counter += 1
+        checkpoint_path = f"{logdir}/ckpt/agent_step_{step}_checkpoint_{checkpoint_counter}.pt"
+        cp.save(checkpoint_path)
 
+  cp.save(f"{logdir}/ckpt/agent_final_step_{step}.pt")
   logger.close()

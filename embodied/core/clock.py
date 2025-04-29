@@ -116,3 +116,19 @@ class LocalClock:
       self.prev = now
       return True
     return False
+
+class StepClock:
+    def __init__(self, every, first=False):
+        self.every = every
+        self.first = first
+        self.last_step = None
+
+    def __call__(self, step):
+        if self.last_step is None:
+            self.last_step = step
+            return self.first
+        
+        if step - self.last_step >= self.every:
+            self.last_step = step
+            return True
+        return False

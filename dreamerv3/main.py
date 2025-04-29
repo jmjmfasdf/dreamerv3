@@ -51,7 +51,18 @@ def main(argv=None):
       initfns=[init],
       ipv6=config.ipv6,
   )
+  ####################################################
+  # task별 threshold 정의
+  task_thresholds = {
+        'atari_pong': 1,
+        'atari_enduro': 309.6,
+        'atari_space_invaders': 1652.0,
+    }
 
+  # config에서 task 읽어오기
+  task = config.task  
+  max_score = task_thresholds.get(task, float('inf'))
+  ####################################################
   args = elements.Config(
       **config.run,
       replica=config.replica,
@@ -63,6 +74,7 @@ def main(argv=None):
       consec_train=config.consec_train,
       consec_report=config.consec_report,
       replay_context=config.replay_context,
+      max_score=max_score
   )
 
   if config.script == 'train':
@@ -72,7 +84,7 @@ def main(argv=None):
         bind(make_env, config),
         bind(make_stream, config),
         bind(make_logger, config),
-        args)
+        args, config)
 
   elif config.script == 'train_eval':
     embodied.run.train_eval(

@@ -49,9 +49,9 @@ defaults:
     steps: 1e10
     duration: 0
     train_ratio: 32.0
-    log_every: 120
-    report_every: 300
-    save_every: 900
+    log_every: 10000
+    report_every: 20000
+    save_every: 30000
     envs: 16
     eval_envs: 4
     eval_eps: 1
@@ -159,9 +159,17 @@ dmlab:
   task: dmlab_explore_goal_locations_small
   run: {steps: 2.6e7, train_ratio: 32}
 
-atari:
+atari_pong:
   task: atari_pong
-  run: {steps: 5.1e7, train_ratio: 32}
+  run: {steps: 2.5e7, train_ratio: 32}
+
+atari_enduro:
+  task: atari_enduro
+  run: {steps: 2.5e7, train_ratio: 32}
+
+atari_space_invaders:
+  task: atari_space_invaders
+  run: {steps: 2.5e7, train_ratio: 32}
 
 procgen:
   task: procgen_coinrun

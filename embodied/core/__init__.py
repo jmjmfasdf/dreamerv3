@@ -2,6 +2,7 @@ from .base import Agent, Env
 
 from .clock import GlobalClock
 from .clock import LocalClock
+from .clock import StepClock
 from .driver import Driver
 from .random import RandomAgent
 from .replay import Replay
